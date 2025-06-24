@@ -76,51 +76,60 @@ export const fetchSearchId = () => async (dispatch) => {
 };
 
 export const fetchTickets = (searchId) => async (dispatch) => {
-  dispatch(setLoading(true)); 
+  dispatch(setLoading(true));
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
-  const SUCCESS_DELAY = 250; 
-  const ERROR_RETRY_DELAY = 1000; 
+  const SUCCESS_DELAY = 250;
+  const ERROR_RETRY_DELAY = 1000;
+  
+  let accumulatedTickets = [];
+  const BATCH_SIZE = 300;
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
       const response = await fetch(`${BASE_URL}/tickets?searchId=${searchId}`);
-
+      
       if (!response.ok) {
-
-        const errorText = await response.text(); 
+        const errorText = await response.text();
         console.error('Server error response status:', response.status);
-        console.error('Server error response data (text):', errorText); 
-
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText.substring(0, 500)}`); 
+        console.error('Server error response data (text):', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText.substring(0, 200)}`);
       }
 
-      const data = await response.json(); 
-      dispatch(addTickets(data.tickets));
-      stop = data.stop; 
-      errorCount = 0; 
+      const data = await response.json();
+      
+      if (data.tickets && data.tickets.length > 0) {
+        accumulatedTickets.push(...data.tickets);
+      }
+      
+      if (accumulatedTickets.length >= BATCH_SIZE || (data.stop && accumulatedTickets.length > 0)) {
+        dispatch(addTickets(accumulatedTickets));
+        accumulatedTickets = [];
+      }
+      
+      stop = data.stop;
+      errorCount = 0;
 
-      if (!stop) { 
+      if (!stop) {
         await new Promise((resolve) => setTimeout(resolve, SUCCESS_DELAY));
       }
-
     } catch (error) {
-
       if (!(error.message && error.message.startsWith('HTTP error!'))) {
          console.error('Error fetching tickets (non-HTTP or parse):', error);
       }
-
-      errorCount++; 
+      errorCount++;
       if (errorCount >= MAX_ERRORS) {
-        console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch for this searchId.`);
+        console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch.`);
         break; 
       }
-
-      await new Promise((resolve) => setTimeout(resolve, ERROR_RETRY_DELAY)); 
+      await new Promise((resolve) => setTimeout(resolve, ERROR_RETRY_DELAY));
     }
   }
-  dispatch(setLoading(false)); 
+  if (accumulatedTickets.length > 0 && errorCount < MAX_ERRORS) {
+     dispatch(addTickets(accumulatedTickets));
+  }
+  dispatch(setLoading(false));
 };
 
 export default apiSlice.reducer;
