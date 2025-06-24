@@ -1,6 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
+import axios from 'axios'; 
 
-const BASE_URL = 'https://aviasales-test-api.kata.academy';
+const api = axios.create({
+  baseURL: 'https://aviasales-test-api.kata.academy',
+  timeout: 5000,
+
+});
 
 const loadTicketsFromStorage = () => {
   const savedTickets = localStorage.getItem('tickets');
@@ -21,10 +26,11 @@ const apiSlice = createSlice({
   name: 'api',
   initialState,
   reducers: {
+
     addTickets: (state, action) => {
       const newTicketsPayload = action.payload;
       if (!newTicketsPayload || newTicketsPayload.length === 0) {
-        return;
+        return; 
       }
 
       const existingTicketIds = new Set(
@@ -36,7 +42,6 @@ const apiSlice = createSlice({
       const ticketsToAdd = [];
       for (const newTicket of newTicketsPayload) {
         const ticketId = `${newTicket.price}_${newTicket.carrier}_${newTicket.segments[0].date}_${newTicket.segments[1].date}`;
-
         if (!existingTicketIds.has(ticketId)) {
           ticketsToAdd.push(newTicket);
           existingTicketIds.add(ticketId); 
@@ -68,77 +73,61 @@ export const { addTickets, setSearchId, setLoading, clearTickets } =
 export const fetchSearchId = () => async (dispatch) => {
   try {
     dispatch(setLoading(true));
-    const response = await fetch(`${BASE_URL}/search`);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    dispatch(setSearchId(data.searchId));
-    dispatch(clearTickets());
+    const response = await api.get('/search');
+    dispatch(setSearchId(response.data.searchId));
+    dispatch(clearTickets()); 
   } catch (error) {
     console.error('Error fetching searchId:', error);
+
   } finally {
     dispatch(setLoading(false));
   }
 };
 
 export const fetchTickets = (searchId) => async (dispatch) => {
-  dispatch(setLoading(true));
+  dispatch(setLoading(true)); 
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
-  const SUCCESS_DELAY = 250;
-  const ERROR_RETRY_DELAY = 1000;
-  
-  let accumulatedTickets = [];
-  const BATCH_SIZE = 300;
+  const SUCCESS_DELAY = 250; 
+  const ERROR_RETRY_DELAY = 1000; 
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
-      const response = await fetch(`${BASE_URL}/tickets?searchId=${searchId}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Server error response status:', response.status);
-        console.error('Server error response data (text):', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText.substring(0, 200)}`);
+
+      const response = await api.get(`/tickets?searchId=${searchId}`);
+
+      if (response.data && response.data.tickets) {
+         dispatch(addTickets(response.data.tickets));
       }
 
-      const data = await response.json();
-      
-      if (data.tickets && data.tickets.length > 0) {
-        accumulatedTickets.push(...data.tickets);
-      }
-      
-      if (accumulatedTickets.length >= BATCH_SIZE || (data.stop && accumulatedTickets.length > 0)) {
-        dispatch(addTickets(accumulatedTickets));
-        accumulatedTickets = [];
-      }
-      
-      stop = data.stop;
-      errorCount = 0;
+      stop = response.data.stop;
+      errorCount = 0; 
 
-      if (!stop) {
+      if (!stop) { 
         await new Promise((resolve) => setTimeout(resolve, SUCCESS_DELAY));
       }
+
     } catch (error) {
-      if (!(error.message && error.message.startsWith('HTTP error!'))) {
-         console.error('Error fetching tickets (non-HTTP or parse):', error);
+      console.error('Error fetching tickets:', error);
+      if (error.response) {
+        console.error('Server error response status:', error.response.status);
+
+        console.error('Server error response data:', error.response.data); 
+      } else {
+        console.error('Error without response (e.g., network issue):', error.message);
       }
+
       errorCount++;
       if (errorCount >= MAX_ERRORS) {
-        console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch.`);
+        console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch for this searchId.`);
         break; 
       }
       await new Promise((resolve) => setTimeout(resolve, ERROR_RETRY_DELAY));
-    }
+    } 
+
   }
-  
-  if (accumulatedTickets.length > 0 && errorCount < MAX_ERRORS) {
-     dispatch(addTickets(accumulatedTickets));
-  }
-  dispatch(setLoading(false));
+  dispatch(setLoading(false)); 
 };
 
 export default apiSlice.reducer;
