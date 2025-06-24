@@ -22,23 +22,33 @@ const apiSlice = createSlice({
   initialState,
   reducers: {
     addTickets: (state, action) => {
-      const newTickets = action.payload;
-      const existingTickets = state.tickets;
+      const newTicketsPayload = action.payload;
+      if (!newTicketsPayload || newTicketsPayload.length === 0) {
+        return;
+      }
 
-      const uniqueTickets = newTickets.filter((newTicket) => {
-        return !existingTickets.some((existingTicket) => {
-          return (
-            newTicket.price === existingTicket.price &&
-            newTicket.carrier === existingTicket.carrier &&
-            newTicket.segments[0].date === existingTicket.segments[0].date &&
-            newTicket.segments[1].date === existingTicket.segments[1].date
-          );
-        });
-      });
+      const existingTicketIds = new Set(
+        state.tickets.map(
+          (t) => `${t.price}_${t.carrier}_${t.segments[0].date}_${t.segments[1].date}`
+        )
+      );
 
-      state.tickets.push(...uniqueTickets);
-      saveTicketsToStorage(state.tickets);
+      const ticketsToAdd = [];
+      for (const newTicket of newTicketsPayload) {
+        const ticketId = `${newTicket.price}_${newTicket.carrier}_${newTicket.segments[0].date}_${newTicket.segments[1].date}`;
+
+        if (!existingTicketIds.has(ticketId)) {
+          ticketsToAdd.push(newTicket);
+          existingTicketIds.add(ticketId); 
+        }
+      }
+
+      if (ticketsToAdd.length > 0) {
+        state.tickets.push(...ticketsToAdd);
+        saveTicketsToStorage(state.tickets);
+      }
     },
+
     setSearchId: (state, action) => {
       state.searchId = action.payload;
     },
@@ -61,15 +71,13 @@ export const fetchSearchId = () => async (dispatch) => {
     const response = await fetch(`${BASE_URL}/search`);
 
     if (!response.ok) {
-
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const data = await response.json(); 
+    const data = await response.json();
     dispatch(setSearchId(data.searchId));
     dispatch(clearTickets());
   } catch (error) {
     console.error('Error fetching searchId:', error);
-
   } finally {
     dispatch(setLoading(false));
   }
@@ -126,6 +134,7 @@ export const fetchTickets = (searchId) => async (dispatch) => {
       await new Promise((resolve) => setTimeout(resolve, ERROR_RETRY_DELAY));
     }
   }
+  
   if (accumulatedTickets.length > 0 && errorCount < MAX_ERRORS) {
      dispatch(addTickets(accumulatedTickets));
   }
