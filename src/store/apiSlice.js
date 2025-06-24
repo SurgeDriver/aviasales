@@ -77,10 +77,10 @@ export const fetchTickets = (searchId) => async (dispatch) => {
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
+  dispatch(setLoading(true));
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
-      dispatch(setLoading(true));
       const response = await api.get(`/tickets?searchId=${searchId}`);
       dispatch(addTickets(response.data.tickets));
       stop = response.data.stop;
@@ -88,23 +88,17 @@ export const fetchTickets = (searchId) => async (dispatch) => {
     } catch (error) {
       console.error('Error fetching tickets:', error);
       errorCount++;
-      if (error.response && error.response.status === 500 && errorCount >= MAX_ERRORS) {
-        console.error(`Failed to fetch tickets after ${MAX_ERRORS} attempts due to server error. Stopping.`);
-        break;
-      } else if (errorCount >= MAX_ERRORS) {
-        console.error(`Failed to fetch tickets after ${MAX_ERRORS} attempts. Stopping.`);
+
+      if (errorCount >= MAX_ERRORS) {
+        console.error(
+          `Failed to fetch tickets after ${MAX_ERRORS} attempts due to persistent errors. Stopping.`
+        );
         break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } finally {
-      if (stop || errorCount >= MAX_ERRORS) {
-        dispatch(setLoading(false));
-      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
-  if (stop && errorCount < MAX_ERRORS) {
-    dispatch(setLoading(false));
-  }
+  dispatch(setLoading(false));
 };
 
 export default apiSlice.reducer;
