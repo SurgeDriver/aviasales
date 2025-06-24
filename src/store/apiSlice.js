@@ -4,6 +4,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'https://aviasales-test-api.kata.academy',
   timeout: 5000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
 const loadTicketsFromStorage = () => {
@@ -77,27 +78,34 @@ export const fetchTickets = (searchId) => async (dispatch) => {
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
+  const SUCCESS_DELAY = 250;
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
       const response = await api.get(`/tickets?searchId=${searchId}`);
       dispatch(addTickets(response.data.tickets));
       stop = response.data.stop;
-      errorCount = 0; 
+      errorCount = 0;
+
+      if (!stop) {
+        await new Promise((resolve) => setTimeout(resolve, SUCCESS_DELAY));
+      }
+
     } catch (error) {
       console.error('Error fetching tickets:', error);
-      if (error.response && error.response.data) {
+      if (error.response) {
+        console.error('Server error response status:', error.response.status);
         console.error('Server error response data:', error.response.data);
+      } else {
+        console.error('Error without response (e.g., network issue):', error.message);
       }
-      errorCount++;
       if (errorCount >= MAX_ERRORS) {
         console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch for this searchId.`);
-        break; 
+        break;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000)); 
     }
   }
-  dispatch(setLoading(false));
 };
 
 export default apiSlice.reducer;
