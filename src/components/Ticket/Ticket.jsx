@@ -33,8 +33,8 @@ const Ticket = ({ price, carrier, outboundTicket, returnTicket }) => {
     return `${departureTime} - ${arrivalTime}`;
   };
 
-  const logoUrl = `http://pics.avs.io/110/36/${carrier}.png`;
-
+  // const logoUrl = `http://pics.avs.io/110/36/${carrier}.png`;
+  const logoUrl = `https://pics.avs.io/110/36/${carrier}.png`; 
   return (
     <div className="ticket">
       <div className="ticket__header">
