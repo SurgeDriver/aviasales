@@ -4,7 +4,6 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'https://aviasales-test-api.kata.academy',
   timeout: 5000,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 const loadTicketsFromStorage = () => {
@@ -74,26 +73,26 @@ export const fetchSearchId = () => async (dispatch) => {
 };
 
 export const fetchTickets = (searchId) => async (dispatch) => {
+  dispatch(setLoading(true));
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
-  dispatch(setLoading(true));
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
       const response = await api.get(`/tickets?searchId=${searchId}`);
       dispatch(addTickets(response.data.tickets));
       stop = response.data.stop;
-      errorCount = 0;
+      errorCount = 0; 
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      if (error.response && error.response.data) {
+        console.error('Server error response data:', error.response.data);
+      }
       errorCount++;
-
       if (errorCount >= MAX_ERRORS) {
-        console.error(
-          `Failed to fetch tickets after ${MAX_ERRORS} attempts due to persistent errors. Stopping.`
-        );
-        break;
+        console.error(`Max errors (${MAX_ERRORS}) reached. Stopping fetch for this searchId.`);
+        break; 
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
