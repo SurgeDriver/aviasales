@@ -6,6 +6,10 @@
   list-style-type: none;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 :root {
   font-family: 'Open Sans', sans-serif;
   line-height: 20px;
