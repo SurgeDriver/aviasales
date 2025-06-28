@@ -1,4 +1,4 @@
-@use '../GeneralStyles/GeneralStyles.scss' as *;
+@use '../../styles/GeneralStyles.scss' as *;
 
 .no-tickets {
   display: flex;
@@ -43,6 +43,7 @@
   text-transform: uppercase;
   font-size: 12px;
   padding: 15px;
+  margin-top: 20px;
 
   &:disabled {
     background: $btn-text;
