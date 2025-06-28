@@ -99,8 +99,8 @@ export const fetchTickets = (searchId) => async (dispatch) => {
   let stop = false;
   let errorCount = 0;
   const MAX_ERRORS = 5;
-  const SUCCESS_DELAY = 250;
-  const ERROR_RETRY_DELAY = 1000;
+  const SUCCESS_DELAY = 50;
+  const ERROR_RETRY_DELAY = 50;
 
   while (!stop && errorCount < MAX_ERRORS) {
     try {
